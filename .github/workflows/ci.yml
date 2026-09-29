@@ -21,6 +21,9 @@ jobs:
       - name: Ensure Android SDK platform 35
         run: yes | sdkmanager "platforms;android-35" || true
 
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
 
