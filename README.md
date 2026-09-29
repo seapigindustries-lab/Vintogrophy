@@ -7,7 +7,8 @@ Vintogrophy turns your phone into a film-inspired camera: live preview, one-tap 
 ## Features
 
 - 📷 CameraX live camera preview (back camera)
-- 🎞 One-tap photo filters: Original, Mono, Sepia, Vintage, Cool, Warm
+- 🎞 **Real-time filters in the live preview** — GPU color-matrix shader in the CameraX pipeline (instant switching, no pipeline restart)
+- 🎞 Filter set: Original, Mono, Sepia, Vintage, Cool, Warm
 - 🖼 Captures are filtered and saved as JPEG to the app's external files directory (`Android/data/com.vintogrophy.app/files/Vintogrophy/`)
 - 🎨 Material 3 theming with dark/light support
 
@@ -43,10 +44,12 @@ The debug APK lands at `app/build/outputs/apk/debug/app-debug.apk`.
 
 ```
 app/src/main/java/com/vintogrophy/app/
-├── MainActivity.kt        # Entry point, Compose host
-├── camera/CameraScreen.kt # CameraX preview, capture, permissions
-├── filter/PhotoFilter.kt  # ColorMatrix filter definitions
-└── ui/theme/              # Material 3 theme (vintage palette)
+├── MainActivity.kt                 # Entry point, Compose host
+├── camera/CameraScreen.kt          # CameraX preview, capture, permissions
+├── camera/ColorMatrixSurfaceProcessor.kt  # GPU live-filter pipeline
+├── filter/PhotoFilter.kt           # ColorMatrix filter definitions
+├── filter/ColorMatrixUniform.kt    # GL upload conversion
+└── ui/theme/                       # Material 3 theme (vintage palette)
 ```
 
 ## License

@@ -31,6 +31,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +62,14 @@ fun CameraScreen(modifier: Modifier = Modifier) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember { PreviewView(context) }
     val imageCapture = remember { ImageCapture.Builder().build() }
+    val processor = remember { ColorMatrixSurfaceProcessor() }
+    val preview = remember {
+        Preview.Builder().build().also { it.setEffect(ColorMatrixEffect(processor)) }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { processor.release() }
+    }
 
     var hasPermission by remember {
         mutableStateOf(
@@ -71,6 +80,10 @@ fun CameraScreen(modifier: Modifier = Modifier) {
     }
     var selectedFilter by remember { mutableStateOf(PhotoFilter.NONE) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(selectedFilter) {
+        processor.setColorMatrix(selectedFilter.values)
+    }
 
     if (!hasPermission) {
         PermissionRequester(onResult = { hasPermission = it })
@@ -85,9 +98,7 @@ fun CameraScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(hasPermission) {
         val cameraProvider = ProcessCameraProvider.getInstance(context).awaitSuspend()
-        val preview = Preview.Builder().build().also {
-            it.setSurfaceProvider(previewView.surfaceProvider)
-        }
+        preview.setSurfaceProvider(previewView.surfaceProvider)
         cameraProvider.unbindAll()
         cameraProvider.bindToLifecycle(
             lifecycleOwner,
@@ -216,12 +227,31 @@ private suspend fun <T> ListenableFuture<T>.awaitSuspend(): T =
     }
 
 private fun applyFilterInPlace(file: File, filter: PhotoFilter) {
-    val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return
+    val decoded = BitmapFactory.decodeFile(file.absolutePath) ?: return
+    val bitmap = applyExifRotation(decoded, file)
     val filtered = Bitmap.createBitmap(bitmap.width, bitmap.height, bitmap.config ?: Bitmap.Config.ARGB_8888)
     val canvas = Canvas(filtered)
     val paint = Paint().apply { colorFilter = filter.colorFilter() }
     canvas.drawBitmap(bitmap, 0f, 0f, paint)
     file.outputStream().use { filtered.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-    bitmap.recycle()
+    if (bitmap !== decoded) bitmap.recycle()
+    decoded.recycle()
     filtered.recycle()
+}
+
+private fun applyExifRotation(source: Bitmap, file: File): Bitmap {
+    val orientation = android.media.ExifInterface(file.absolutePath)
+        .getAttributeInt(
+            android.media.ExifInterface.TAG_ORIENTATION,
+            android.media.ExifInterface.ORIENTATION_NORMAL,
+        )
+    val degrees = when (orientation) {
+        android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+        android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+        android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+        else -> 0f
+    }
+    if (degrees == 0f) return source
+    val matrix = android.graphics.Matrix().apply { postRotate(degrees) }
+    return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
 }
