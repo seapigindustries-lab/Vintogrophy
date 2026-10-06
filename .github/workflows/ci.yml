@@ -16,7 +16,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Ensure Android SDK platform 35
         run: yes | sdkmanager "platforms;android-35" || true
